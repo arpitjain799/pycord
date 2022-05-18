@@ -96,6 +96,18 @@ AutoShardedBot
 Application Commands
 ---------------------
 
+
+Command Permission Decorators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autofunction:: discord.commands.default_permissions
+    :decorator:
+
+.. autofunction:: discord.commands.guild_only
+    :decorator:
+
+
 ApplicationCommand
 ~~~~~~~~~~~~~~~~~~~
 
@@ -103,6 +115,12 @@ ApplicationCommand
 
 .. autoclass:: ApplicationCommand
     :members:
+    
+.. autofunction:: discord.commands.application_command
+    :decorator:
+
+.. autofunction:: discord.commands.command
+    :decorator:
 
 SlashCommand
 ~~~~~~~~~~~~~
@@ -111,6 +129,9 @@ SlashCommand
 
 .. autoclass:: SlashCommand
     :members:
+    
+.. autofunction:: discord.commands.slash_command
+    :decorator:
 
 SlashCommandGroup
 ~~~~~~~~~~~~~~~~~~
@@ -127,6 +148,9 @@ Option
 
 .. autoclass:: Option
     :members:
+    
+.. autofunction:: discord.commands.Option
+    :decorator:
 
 OptionChoice
 ~~~~~~~~~~~~~
@@ -143,6 +167,9 @@ UserCommand
 
 .. autoclass:: UserCommand
     :members:
+    
+.. autofunction:: discord.commands.user_command
+    :decorator:
 
 MessageCommand
 ~~~~~~~~~~~~~~~
@@ -151,6 +178,9 @@ MessageCommand
 
 .. autoclass:: MessageCommand
     :members:
+    
+.. autofunction:: discord.commands.message_command
+    :decorator:
 
 ApplicationContext
 ~~~~~~~~~~~~~~~~~~~
@@ -158,6 +188,33 @@ ApplicationContext
 .. attributetable:: ApplicationContext
 
 .. autoclass:: ApplicationContext
+    :members:
+
+AutocompleteContext
+~~~~~~~~~~~~~~~~~~~
+
+.. attributetable:: AutocompleteContext
+
+.. autoclass:: AutocompleteContext
+    :members:
+
+Cogs
+-----
+
+Cog
+~~~~
+
+.. attributetable:: Cog
+
+.. autoclass:: Cog
+    :members:
+    
+CogMeta
+~~~~~~~~
+
+.. attributetable:: CogMeta
+
+.. autoclass:: CogMeta
     :members:
 
 Application Info
@@ -475,7 +532,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. function:: on_raw_typing(payload)
 
-    Called when someone begins typing a message. Unlike :func:`on_typing`, this is 
+    Called when someone begins typing a message. Unlike :func:`on_typing`, this is
     called regardless if the user can be found in the bot's cache or not.
 
     If the typing event is occurring in a guild,
@@ -745,6 +802,36 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     :param interaction: The interaction data.
     :type interaction: :class:`Interaction`
 
+.. function:: on_application_command(context)
+
+    Called when an application command is received.
+
+    .. versionadded:: 2.0
+
+    :param context: The ApplicationContext associated to the command being received.
+    :type context: :class:`ApplicationContext`
+
+.. function:: on_application_command_completion(context)
+
+    Called when an application command is completed, after any checks have finished.
+
+    .. versionadded:: 2.0
+
+    :param context: The ApplicationContext associated to the command that was completed.
+    :type context: :class:`ApplicationContext`
+
+.. function:: on_application_command_error(context, exception)
+
+    Called when an application command has an error.
+
+    .. versionadded:: 2.0
+
+    :param context: The ApplicationContext associated to the command that has an error.
+    :type context: :class:`ApplicationContext`
+
+    :param exception: The DiscordException associated to the error.
+    :type exception: :class:`DiscordException`
+
 .. function:: on_private_channel_update(before, after)
 
     Called whenever a private group DM is updated. e.g. changed name or topic.
@@ -801,8 +888,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. function:: on_thread_join(thread)
 
-    Called whenever a thread is joined or created. Note that from the API's perspective there is no way to
-    differentiate between a thread being created or the bot joining a thread.
+    Called whenever a thread is joined.
 
     Note that you can get the guild from :attr:`Thread.guild`.
 
@@ -811,6 +897,19 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     .. versionadded:: 2.0
 
     :param thread: The thread that got joined.
+    :type thread: :class:`Thread`
+
+.. function:: on_thread_create(thread)
+
+    Called whenever a thread is created.
+
+    Note that you can get the guild from :attr:`Thread.guild`.
+
+    This requires :attr:`Intents.guilds` to be enabled.
+
+    .. versionadded:: 2.0
+
+    :param thread: The thread that got created.
     :type thread: :class:`Thread`
 
 .. function:: on_thread_remove(thread)
@@ -835,7 +934,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. function:: on_thread_delete(thread)
 
-    Called whenever a thread is deleted.  If the deleted thread isn't found in internal cache 
+    Called whenever a thread is deleted.  If the deleted thread isn't found in internal cache
     then this will not be called. Archived threads are not in the cache. Consider using :func:`on_raw_thread_delete`
 
 
@@ -849,7 +948,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     :type thread: :class:`Thread`
 
 .. function:: on_raw_thread_delete(payload)
-    
+
     Called whenever a thread is deleted. Unlike :func:`on_thread_delete` this is called
     regardless of the state of the internal cache.
 
@@ -1335,6 +1434,8 @@ Utility Functions
 
 .. autofunction:: discord.utils.generate_snowflake
 
+.. autofunction:: discord.utils.basic_autocomplete
+
 .. _discord-api-enums:
 
 Enumerations
@@ -1394,25 +1495,26 @@ of :class:`enum.Enum`.
     .. attribute:: text
 
         A text channel.
+
     .. attribute:: voice
 
         A voice channel.
+
     .. attribute:: private
 
         A private text channel. Also called a direct message.
+
     .. attribute:: group
 
         A private group text channel.
+
     .. attribute:: category
 
         A category channel.
+
     .. attribute:: news
 
         A guild news channel.
-
-    .. attribute:: store
-
-        A guild store channel.
 
     .. attribute:: stage_voice
 
@@ -1748,7 +1850,9 @@ of :class:`enum.Enum`.
     .. attribute:: select
 
         Represents a select component.
+    .. attribute:: input_text
 
+        Represents an input_text component.
 
 .. class:: ButtonStyle
 
@@ -1790,6 +1894,28 @@ of :class:`enum.Enum`.
     .. attribute:: url
 
         An alias for :attr:`link`.
+
+.. class:: InputTextStyle
+
+    Represents the style of the input text component.
+
+    .. versionadded:: 2.0
+
+    .. attribute:: short
+
+        Represents a single-line input text field.
+    .. attribute:: long
+
+        Represents a multi-line input text field.
+    .. attribute:: singleline
+
+        An alias for :attr:`short`.
+    .. attribute:: multiline
+
+        An alias for :attr:`long`.
+    .. attribute:: paragraph
+
+        An alias for :attr:`long`.
 
 .. class:: VoiceRegion
 
@@ -2634,7 +2760,7 @@ of :class:`enum.Enum`.
         - :attr:`~AuditLogDiff.location_type`
 
         .. versionadded:: 2.0
-        
+
     .. attribute:: scheduled_event_update
 
         A scheduled event was updated.
@@ -2654,7 +2780,7 @@ of :class:`enum.Enum`.
         - :attr:`~AuditLogDiff.location_type`
 
         .. versionadded:: 2.0
-        
+
     .. attribute:: scheduled_event_delete
 
         A scheduled event was deleted.
@@ -2728,6 +2854,21 @@ of :class:`enum.Enum`.
         - :attr:`~AuditLogDiff.invitable`
 
         .. versionadded:: 2.0
+        
+    .. attribute:: application_command_permission_update
+
+        An application command's permissions were updated.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        an :class:`Object` with the ID of the command that
+        had it's permissions edited.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.command_id`
+
+        .. versionadded:: 2.0
+        
 
 .. class:: AuditLogActionCategory
 
@@ -2959,7 +3100,7 @@ of :class:`enum.Enum`.
     Some might be boost-only or gated.
 
     .. warning::
-        
+
         Discord said that they won't verify bots who gives access to embedded activities.
 
         Read more here: https://discord.com/channels/613425648685547541/697236247739105340/901153332075315321.
@@ -2967,29 +3108,29 @@ of :class:`enum.Enum`.
     .. versionadded:: 2.0
 
     .. attribute:: awkword
-        
+
         Represents the embedded application Awkword.
 
     .. attribute:: betrayal
 
         Represents the embedded application Betrayal.io
-    
+
     .. attribute:: checkers_in_the_park
 
         Represents the embedded application Checkers in the Park Prod.
-    
+
     .. attribute:: checkers_in_the_park_dev
 
         Represents the embedded application Checkers in the Park Development.
-    
+
     .. attribute:: checkers_in_the_park_staging
-        
+
         Represents the embedded application Checkers in the Park Staging.
-    
+
     .. attribute:: checkers_in_the_park_qa
-        
+
         Represents the embedded application Checkers in the Park QA.
-    
+
     .. attribute:: chess_in_the_park
 
         Represents the embedded application Chess in the Park.
@@ -2999,13 +3140,13 @@ of :class:`enum.Enum`.
         Represents the embedded application Chess in the Park Development.
 
     .. attribute:: chest_in_the_park_staging
-        
+
         Represents the embedded application Chess in the Park Staging.
 
     .. attribute:: chest_in_the_park_qa
-        
+
         Represents the embedded application Chess in the Park QA.
-    
+
     .. attribute:: doodle_crew
 
         Represents the embedded application Doodle Crew.
@@ -3017,9 +3158,9 @@ of :class:`enum.Enum`.
     .. attribute:: letter_tile
 
         Represents the embedded application Letter Tile.
-    
+
     .. attribute:: ocho
-    
+
         Represents the embedded application Ocho.
 
     .. attribute:: ocho_dev
@@ -3027,13 +3168,13 @@ of :class:`enum.Enum`.
         Represents the embedded application Ocho Development.
 
     .. attribute:: ocho_staging
-        
+
         Represents the embedded application Ocho Staging.
-    
+
     .. attribute:: ocho_qa
-        
+
         Represents the embedded application Ocho QA.
-    
+
     .. attribute:: poker_night_staging
 
         Represents the embedded application Poker Night Staging.
@@ -3041,23 +3182,23 @@ of :class:`enum.Enum`.
     .. attribute:: poker_night
 
         Represents the embedded application Poker Night.
-     
+
     .. attribute:: poker_night_qa
 
         Represents the embedded application Poker QA.
-    
+
     .. attribute:: putts
-        
+
         Represents the embedded application Putts.
 
-    .. attribute:: sketchy_artist 
-        
+    .. attribute:: sketchy_artist
+
         Represents the embedded application Sketchy Artist.
-    
+
     .. attribute:: sketchy_artist_dev
-        
+
         Represents the embedded application Sketchy Artist development version.
-    
+
     .. attribute:: spell_cast
 
         Represents the embedded application Spell Cast.
@@ -3065,19 +3206,19 @@ of :class:`enum.Enum`.
     .. attribute:: watch_together
 
         Same as :attr:`~EmbeddedActivity.youtube_together` with remote feature which allows guild admins to limit the playlist access.
-        
+
     .. attribute:: watch_together_dev
 
         Development version of :attr:`.watch_together`.
 
     .. attribute:: word_snacks
-        
+
         Represents the embedded application word snacks.
-    
+
     .. attribute:: word_snacks_dev
-        
+
         Represents the embedded application word snacks. This is development version of :attr:`.word_snacks`
-        
+
     .. attribute:: youtube_together
 
         Represents the embedded application Youtube Together.
@@ -3086,7 +3227,7 @@ of :class:`enum.Enum`.
 
     Represents the status of a scheduled event.
 
-    .. verssionadded:: 2.0
+    .. versionadded:: 2.0
 
     .. attribute:: scheduled
 
@@ -3112,7 +3253,7 @@ of :class:`enum.Enum`.
 
     Represents a scheduled event location type (otherwise known as the entity type on the API).
 
-    .. verssionadded:: 2.0
+    .. versionadded:: 2.0
 
     .. attribute:: stage_instance
 
@@ -3790,6 +3931,12 @@ AuditLogDiff
         Non-moderators can now add other non-moderators to this thread.
 
         :type: :class:`bool`
+        
+    .. attribute:: command_id
+
+        This command's permissions were updated.
+
+        :type: :class:`int`
 
 .. this is currently missing the following keys: reason and application_id
    I'm not sure how to about porting these
@@ -4065,7 +4212,7 @@ Guild
 ScheduledEvent
 ~~~~~~~~~~~~~~~
 
-.. attributestable:: ScheduledEvent
+.. attributetable:: ScheduledEvent
 
 .. autoclass:: ScheduledEvent()
     :members:
@@ -4238,15 +4385,6 @@ ThreadMember
 .. autoclass:: ThreadMember()
     :members:
 
-StoreChannel
-~~~~~~~~~~~~~
-
-.. attributetable:: StoreChannel
-
-.. autoclass:: StoreChannel()
-    :members:
-    :inherited-members:
-
 VoiceChannel
 ~~~~~~~~~~~~~
 
@@ -4346,7 +4484,7 @@ Template
 
 .. autoclass:: Template()
     :members:
-        
+
 WelcomeScreen
 ~~~~~~~~~~~~~~~
 
@@ -4501,7 +4639,7 @@ RawThreadDeleteEvent
     :members:
 
 RawScheduledEventSubscription
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. attributetable:: RawScheduledEventSubscription
 
@@ -4555,6 +4693,14 @@ Embed
 .. attributetable:: Embed
 
 .. autoclass:: Embed
+    :members:
+
+EmbedField
+~~~~~~~~~~
+
+.. attributetable:: EmbedField
+
+.. autoclass:: EmbedField
     :members:
 
 AllowedMentions
@@ -4762,6 +4908,24 @@ Select
 
 .. autofunction:: discord.ui.select
 
+Modal
+~~~~~
+
+.. attributetable:: discord.ui.Modal
+
+.. autoclass:: discord.ui.Modal
+    :members:
+    :inherited-members:
+
+InputText
+~~~~~~~~~
+
+.. attributetable:: discord.ui.InputText
+
+.. autoclass:: discord.ui.InputText
+    :members:
+    :inherited-members:
+
 Sink Core
 ---------
 
@@ -4806,6 +4970,10 @@ Sinks
 Sink Error Reference
 --------------------
 
+.. autoexception:: discord.sinks.SinkException
+
+.. autoexception:: discord.sinks.RecordingException
+
 .. autoexception:: discord.sinks.WaveSinkError
 
 .. autoexception:: discord.sinks.MP3SinkError
@@ -4826,15 +4994,15 @@ Sink Exception Hierarchy
 .. exception_hierarchy::
 
     - :exc:`DiscordException`
-        - :exc:`SinkException`
-            - :exc:`RecordingException`
-            - :exc:`WaveSinkError`
-            - :exc:`MP3SinkError`
-            - :exc:`MP4SinkError`
-            - :exc:`M4ASinkError`
-            - :exc:`MKVSinkError`
-            - :exc:`MKASinkError`
-            - :exc:`OGGSinkError`
+        - :exc:`sinks.SinkException`
+            - :exc:`sinks.RecordingException`
+            - :exc:`sinks.WaveSinkError`
+            - :exc:`sinks.MP3SinkError`
+            - :exc:`sinks.MP4SinkError`
+            - :exc:`sinks.M4ASinkError`
+            - :exc:`sinks.MKVSinkError`
+            - :exc:`sinks.MKASinkError`
+            - :exc:`sinks.OGGSinkError`
 
 
 Exceptions
@@ -4875,6 +5043,33 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: discord.opus.OpusNotLoaded
 
+.. autoexception:: discord.ApplicationCommandError
+    :members:
+    
+.. autoexception:: discord.CheckFailure
+    :members:
+    
+.. autoexception:: discord.ApplicationCommandInvokeError
+    :members:
+
+.. autoexception:: discord.ExtensionError
+    :members:
+
+.. autoexception:: discord.ExtensionAlreadyLoaded
+    :members:
+
+.. autoexception:: discord.ExtensionNotLoaded
+    :members:
+
+.. autoexception:: discord.NoEntryPointError
+    :members:
+
+.. autoexception:: discord.ExtensionFailed
+    :members:
+
+.. autoexception:: discord.ExtensionNotFound
+    :members:
+
 Exception Hierarchy
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -4883,7 +5078,6 @@ Exception Hierarchy
     - :exc:`Exception`
         - :exc:`DiscordException`
             - :exc:`ClientException`
-                - :exc:`RecordingException`
                 - :exc:`InvalidData`
                 - :exc:`InvalidArgument`
                 - :exc:`LoginFailure`
@@ -4896,3 +5090,12 @@ Exception Hierarchy
                 - :exc:`Forbidden`
                 - :exc:`NotFound`
                 - :exc:`DiscordServerError`
+            - :exc:`ApplicationCommandError`
+                - :exc:`CheckFailure`
+                - :exc:`ApplicationCommandInvokeError`
+            - :exc:`ExtensionError`
+                - :exc:`ExtensionAlreadyLoaded`
+                - :exc:`ExtensionNotLoaded`
+                - :exc:`NoEntryPointError`
+                - :exc:`ExtensionFailed`
+                - :exc:`ExtensionNotFound`

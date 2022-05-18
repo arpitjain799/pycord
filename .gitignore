@@ -30,4 +30,4 @@ build/
 test.py
 build/
 node_modules/*
-test.py
+.coverage

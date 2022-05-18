@@ -18,20 +18,18 @@ bot = commands.Bot(
 
 @bot.slash_command(name="userinfo", description="gets the info of a user")
 async def info(ctx, user: discord.Member = None):
-    user = (
-        user or ctx.author
-    )  # if no user is provided it'll use the the author of the message
+    user = user or ctx.author  # if no user is provided it'll use the the author of the message
     e = discord.Embed()
     e.set_author(name=user.name)
     e.add_field(name="ID", value=user.id, inline=False)  # user ID
     e.add_field(
         name="Joined",
-        value=discord.utils.format_dt(round(user.joined_at.timestamp()), "F"),
+        value=discord.utils.format_dt(user.joined_at, "F"),
         inline=False,
     )  # When the user joined the server
     e.add_field(
         name="Created",
-        value=discord.utils.format_dt(round(user.created_at.timestamp()), "F"),
+        value=discord.utils.format_dt(user.created_at, "F"),
         inline=False,
     )  # When the user's account was created
     colour = user.colour

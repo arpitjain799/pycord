@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, TypeVar, Union, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Optional, TypeVar, Union
 
 import discord.abc
 from discord.interactions import InteractionMessage
@@ -48,18 +48,18 @@ if TYPE_CHECKING:
 
     from ..cog import Cog
     from ..webhook import WebhookMessage
-    
+
     from typing import Callable, Awaitable
 
-from ..utils import _cached_property as cached_property
+from ..utils import cached_property
 
-T = TypeVar('T')
-CogT = TypeVar('CogT', bound="Cog")
+T = TypeVar("T")
+CogT = TypeVar("CogT", bound="Cog")
 
 if TYPE_CHECKING:
-    P = ParamSpec('P')
+    P = ParamSpec("P")
 else:
-    P = TypeVar('P')
+    P = TypeVar("P")
 
 __all__ = ("ApplicationContext", "AutocompleteContext")
 
@@ -97,7 +97,13 @@ class ApplicationContext(discord.abc.Messageable):
     async def _get_channel(self) -> Optional[InteractionChannel]:
         return self.interaction.channel
 
-    async def invoke(self, command: ApplicationCommand[CogT, P, T], /, *args: P.args, **kwargs: P.kwargs) -> T:
+    async def invoke(
+        self,
+        command: ApplicationCommand[CogT, P, T],
+        /,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> T:
         r"""|coro|
 
         Calls a command with the arguments given.
@@ -184,10 +190,9 @@ class ApplicationContext(discord.abc.Messageable):
         -------
         Optional[List[Dict]]
             A dictionary containing the options and values that were selected by the user when the command was processed, if applicable.
+            Returns ``None`` if the command has not yet been invoked, or if there are no options defined for that command.
         """
-        if "options" in self.interaction.data:
-            return self.interaction.data["options"]
-        return None
+        return self.interaction.data.get("options", None)
 
     @property
     def unselected_options(self) -> Optional[List[Option]]:
@@ -197,23 +202,33 @@ class ApplicationContext(discord.abc.Messageable):
         -------
         Optional[List[:class:`.Option`]]
             A list of Option objects (if any) that were not selected by the user when the command was processed.
+            Returns ``None`` if there are no options defined for that command.
         """
         if self.command.options is not None:  # type: ignore
-            return [
-                option
-                for option in self.command.options  # type: ignore
-                if option.to_dict()["name"] not in [opt["name"] for opt in self.selected_options]
-            ]
+            if self.selected_options:
+                return [
+                    option
+                    for option in self.command.options  # type: ignore
+                    if option.to_dict()["name"] not in [opt["name"] for opt in self.selected_options]
+                ]
+            else:
+                return self.command.options  # type: ignore
         return None
 
     @property
-    def respond(self) -> Callable[..., Awaitable[Union[Interaction, WebhookMessage]]]:
-        """Callable[..., Union[:class:`~.Interaction`, :class:`~.Webhook`]]: Sends either a response
-        or a followup response depending if the interaction has been responded to yet or not."""
-        if not self.interaction.response.is_done():
-            return self.interaction.response.send_message  # self.response
-        else:
-            return self.followup.send  # self.send_followup
+    def send_modal(self) -> Callable[..., Awaitable[Interaction]]:
+        """Sends a modal dialog to the user who invoked the interaction."""
+        return self.interaction.response.send_modal
+
+    async def respond(self, *args, **kwargs) -> Union[Interaction, WebhookMessage]:
+        """Sends either a response or a followup response depending if the interaction has been responded to yet or not."""
+        try:
+            if not self.interaction.response.is_done():
+                return await self.interaction.response.send_message(*args, **kwargs)  # self.response
+            else:
+                return await self.followup.send(*args, **kwargs)  # self.send_followup
+        except discord.errors.InteractionResponded:
+            return await self.followup.send(*args, **kwargs)
 
     @property
     def send_response(self) -> Callable[..., Awaitable[Interaction]]:
@@ -241,13 +256,29 @@ class ApplicationContext(discord.abc.Messageable):
     def followup(self) -> Webhook:
         return self.interaction.followup
 
-    async def delete(self):
-        """Calls :attr:`~discord.commands.ApplicationContext.respond`.
-        If the response is done, then calls :attr:`~discord.commands.ApplicationContext.respond` first."""
+    async def delete(self, *, delay: Optional[float] = None) -> None:
+        """|coro|
+
+        Deletes the original interaction response message.
+
+        This is a higher level interface to :meth:`Interaction.delete_original_message`.
+
+        Parameters
+        -----------
+        delay: Optional[:class:`float`]
+            If provided, the number of seconds to wait before deleting the message.
+
+        Raises
+        -------
+        HTTPException
+            Deleting the message failed.
+        Forbidden
+            You do not have proper permissions to delete the message.
+        """
         if not self.interaction.response.is_done():
             await self.defer()
 
-        return await self.interaction.delete_original_message()
+        return await self.interaction.delete_original_message(delay=delay)
 
     @property
     def edit(self) -> Callable[..., Awaitable[InteractionMessage]]:
@@ -281,7 +312,7 @@ class AutocompleteContext:
         The option the user is currently typing.
     value: :class:`.str`
         The content of the focused option.
-    options :class:`.dict`
+    options: :class:`.dict`
         A name to value mapping of the options that the user has selected before this option.
     """
 

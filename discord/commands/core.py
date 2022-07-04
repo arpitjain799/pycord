@@ -48,7 +48,7 @@ from typing import (
     Union,
 )
 
-from ..channel import _guild_channel_factory
+from ..channel import _threaded_guild_channel_factory
 from ..enums import MessageType, SlashCommandOptionType, try_enum, Enum as DiscordEnum
 from ..errors import (
     ApplicationCommandError,
@@ -61,6 +61,7 @@ from ..member import Member
 from ..message import Attachment, Message
 from ..object import Object
 from ..role import Role
+from ..threads import Thread
 from ..user import User
 from ..utils import async_all, find, utcnow
 from .context import ApplicationContext, AutocompleteContext
@@ -239,8 +240,8 @@ class ApplicationCommand(_BaseCommand, Generic[CogT, P, T]):
     def callback(
         self,
     ) -> Union[
-        Callable[Concatenate[CogT, ApplicationContext, P], Coro[T]],
-        Callable[Concatenate[ApplicationContext, P], Coro[T]],
+        Callable[[Concatenate[CogT, ApplicationContext, P]], Coro[T]],
+        Callable[[Concatenate[ApplicationContext, P]], Coro[T]],
     ]:
         return self._callback
 
@@ -248,8 +249,8 @@ class ApplicationCommand(_BaseCommand, Generic[CogT, P, T]):
     def callback(
         self,
         function: Union[
-            Callable[Concatenate[CogT, ApplicationContext, P], Coro[T]],
-            Callable[Concatenate[ApplicationContext, P], Coro[T]],
+            Callable[[Concatenate[CogT, ApplicationContext, P]], Coro[T]],
+            Callable[[Concatenate[ApplicationContext, P]], Coro[T]],
         ],
     ) -> None:
         self._callback = function
@@ -688,13 +689,17 @@ class SlashCommand(ApplicationCommand):
                     option = Option(option.__args__)
 
             if not isinstance(option, Option):
-                option = Option(option)
+                if isinstance(p_obj.default, Option):
+                    p_obj.default.input_type = SlashCommandOptionType.from_datatype(option)
+                    option = p_obj.default
+                else:
+                    option = Option(option)
 
-            if option.default is None:
-                if p_obj.default == inspect.Parameter.empty:
-                    option.default = None
-                elif isinstance(p_obj.default, type) and issubclass(p_obj.default, (DiscordEnum, Enum)):
+            if option.default is None and not p_obj.default == inspect.Parameter.empty:
+                if isinstance(p_obj.default, type) and issubclass(p_obj.default, (DiscordEnum, Enum)):
                     option = Option(p_obj.default)
+                elif isinstance(p_obj.default, Option) and not (default := p_obj.default.default) is None:
+                    option.default = default
                 else:
                     option.default = p_obj.default
                     option.required = False
@@ -767,7 +772,7 @@ class SlashCommand(ApplicationCommand):
             as_dict["type"] = SlashCommandOptionType.sub_command.value
 
         if self.guild_only is not None:
-            as_dict["guild_only"] = self.guild_only
+            as_dict["dm_permission"] = not self.guild_only
 
         if self.default_member_permissions is not None:
             as_dict["default_member_permissions"] = self.default_member_permissions.value
@@ -779,6 +784,8 @@ class SlashCommand(ApplicationCommand):
         kwargs = {}
         for arg in ctx.interaction.data.get("options", []):
             op = find(lambda x: x.name == arg["name"], self.options)
+            if op is None:
+                continue
             arg = arg["value"]
 
             # Checks if input_type is user, role or channel
@@ -798,7 +805,8 @@ class SlashCommand(ApplicationCommand):
                     if (_user_data := resolved.get("users", {}).get(arg)) is not None:
                         # We resolved the user from the user id
                         _data["user"] = _user_data
-                    arg = Member(state=ctx.interaction._state, data=_data, guild=ctx.guild)
+                    cache_flag = ctx.interaction._state.member_cache_flags.interaction
+                    arg = ctx.guild._get_and_update_member(_data, int(arg), cache_flag)
                 elif op.input_type is SlashCommandOptionType.mentionable:
                     if (_data := resolved.get("users", {}).get(arg)) is not None:
                         arg = User(state=ctx.interaction._state, data=_data)
@@ -807,25 +815,42 @@ class SlashCommand(ApplicationCommand):
                     else:
                         arg = Object(id=int(arg))
                 elif (_data := resolved.get(f"{op.input_type.name}s", {}).get(arg)) is not None:
-                    obj_type = None
-                    kw = {}
-                    if op.input_type is SlashCommandOptionType.user:
-                        obj_type = User
-                    elif op.input_type is SlashCommandOptionType.role:
-                        obj_type = Role
-                        kw["guild"] = ctx.guild
-                    elif op.input_type is SlashCommandOptionType.channel:
-                        obj_type = _guild_channel_factory(_data["type"])[0]
-                        kw["guild"] = ctx.guild
-                    elif op.input_type is SlashCommandOptionType.attachment:
-                        obj_type = Attachment
-                    arg = obj_type(state=ctx.interaction._state, data=_data, **kw)
+                    if op.input_type is SlashCommandOptionType.channel and (
+                        int(arg) in ctx.guild._channels or int(arg) in ctx.guild._threads
+                    ):
+                        arg = ctx.guild.get_channel_or_thread(int(arg))
+                        _data["_invoke_flag"] = True
+                        arg._update(_data) if isinstance(arg, Thread) else arg._update(ctx.guild, _data)
+                    else:
+                        obj_type = None
+                        kw = {}
+                        if op.input_type is SlashCommandOptionType.user:
+                            obj_type = User
+                        elif op.input_type is SlashCommandOptionType.role:
+                            obj_type = Role
+                            kw["guild"] = ctx.guild
+                        elif op.input_type is SlashCommandOptionType.channel:
+                            # NOTE:
+                            # This is a fallback in case the channel/thread is not found in the
+                            # guild's channels/threads. For channels, if this fallback occurs, at the very minimum,
+                            # permissions will be incorrect due to a lack of permission_overwrite data.
+                            # For threads, if this fallback occurs, info like thread owner id, message count,
+                            # flags, and more will be missing due to a lack of data sent by Discord.
+                            obj_type = _threaded_guild_channel_factory(_data["type"])[0]
+                            kw["guild"] = ctx.guild
+                        elif op.input_type is SlashCommandOptionType.attachment:
+                            obj_type = Attachment
+                        arg = obj_type(state=ctx.interaction._state, data=_data, **kw)
                 else:
                     # We couldn't resolve the object, so we just return an empty object
                     arg = Object(id=int(arg))
 
             elif op.input_type == SlashCommandOptionType.string and (converter := op.converter) is not None:
-                arg = await converter.convert(converter, ctx, arg)
+                from discord.ext.commands import Converter
+                if isinstance(converter, Converter):
+                    arg = await converter.convert(ctx, arg)
+                elif isinstance(converter, type) and hasattr(converter, "convert"):
+                    arg = await converter().convert(ctx, arg)
 
             elif op._raw_type in (SlashCommandOptionType.integer,
                                   SlashCommandOptionType.number,
@@ -839,8 +864,8 @@ class SlashCommand(ApplicationCommand):
                         arg = op._raw_type(int(arg))
                     except ValueError:
                         arg = op._raw_type(arg)
-                else:
-                    arg = op._raw_type(arg)
+                elif choice := find(lambda c: c.value == arg, op.choices):
+                    arg = getattr(op._raw_type, choice.name)
 
             kwargs[op._parameter_name] = arg
 
@@ -1025,7 +1050,7 @@ class SlashCommandGroup(ApplicationCommand):
             as_dict["type"] = self.input_type.value
 
         if self.guild_only is not None:
-            as_dict["guild_only"] = self.guild_only
+            as_dict["dm_permission"] = not self.guild_only
 
         if self.default_member_permissions is not None:
             as_dict["default_member_permissions"] = self.default_member_permissions.value
@@ -1300,7 +1325,7 @@ class ContextMenuCommand(ApplicationCommand):
         }
 
         if self.guild_only is not None:
-            as_dict["guild_only"] = self.guild_only
+            as_dict["dm_permission"] = not self.guild_only
 
         if self.default_member_permissions is not None:
             as_dict["default_member_permissions"] = self.default_member_permissions.value
@@ -1638,20 +1663,18 @@ def validate_chat_input_name(name: Any, locale: Optional[str] = None):
     # Must meet the regex ^[-_\w\d\u0901-\u097D\u0E00-\u0E7F]{1,32}$
     if locale is not None and locale not in valid_locales:
         raise ValidationError(
-            f"Locale '{locale}' is not a valid locale, " f"see {docs}/reference#locales for list of supported locales."
+            f"Locale '{locale}' is not a valid locale, see {docs}/reference#locales for list of supported locales."
         )
     error = None
-    if not isinstance(name, str) or not re.match(r"^[\w-]{1,32}$", name):
+    if not isinstance(name, str):
         error = TypeError(f'Command names and options must be of type str. Received "{name}"')
     elif not re.match(r"^[-_\w\d\u0901-\u097D\u0E00-\u0E7F]{1,32}$", name):
         error = ValidationError(
-            r"Command names and options must follow the regex \"^[-_\w\d\u0901-\u097D\u0E00-\u0E7F]{1,32}$\". For more information, see "
-            f"{docs}/interactions/application-commands#application-command-object-application-command-naming. "
-            f'Received "{name}"'
+            r"Command names and options must follow the regex \"^[-_\w\d\u0901-\u097D\u0E00-\u0E7F]{1,32}$\". "
+            f"For more information, see {docs}/interactions/application-commands#application-command-object-"
+            f'application-command-naming. Received "{name}"'
         )
-    elif not 1 <= len(name) <= 32:
-        error = ValidationError(f'Command names and options must be 1-32 characters long. Received "{name}"')
-    elif name.lower() != name:  # Can't use islower() as it fails if none of the chars can be lower. See #512.
+    elif name.lower() != name:  # Can't use islower() as it fails if none of the chars can be lowered. See #512.
         error = ValidationError(f'Command names and options must be lowercase. Received "{name}"')
 
     if error:
@@ -1663,7 +1686,7 @@ def validate_chat_input_name(name: Any, locale: Optional[str] = None):
 def validate_chat_input_description(description: Any, locale: Optional[str] = None):
     if locale is not None and locale not in valid_locales:
         raise ValidationError(
-            f"Locale '{locale}' is not a valid locale, " f"see {docs}/reference#locales for list of supported locales."
+            f"Locale '{locale}' is not a valid locale, see {docs}/reference#locales for list of supported locales."
         )
     error = None
     if not isinstance(description, str):

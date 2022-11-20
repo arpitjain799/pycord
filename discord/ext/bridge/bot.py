@@ -22,6 +22,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+from __future__ import annotations
+
 from abc import ABC
 
 from discord.interactions import Interaction
@@ -30,12 +32,27 @@ from discord.message import Message
 from ..commands import AutoShardedBot as ExtAutoShardedBot
 from ..commands import Bot as ExtBot
 from .context import BridgeApplicationContext, BridgeExtContext
-from .core import BridgeCommand, bridge_command
+from .core import BridgeCommand, BridgeCommandGroup, bridge_command, bridge_group
 
 __all__ = ("Bot", "AutoShardedBot")
 
 
 class BotBase(ABC):
+    _bridge_commands: list[BridgeCommand | BridgeCommandGroup]
+
+    @property
+    def bridge_commands(self) -> list[BridgeCommand | BridgeCommandGroup]:
+        """Returns all of the bot's bridge commands."""
+
+        if cmds := getattr(self, "_bridge_commands", []):
+            self._bridge_commands = cmds = []
+
+        return cmds
+
+    @bridge_commands.setter
+    def bridge_commands(self, cmds):
+        self._bridge_commands = cmds
+
     async def get_application_context(
         self, interaction: Interaction, cls=None
     ) -> BridgeApplicationContext:
@@ -56,13 +73,14 @@ class BotBase(ABC):
         """
         # Ignore the type hinting error here. All subclasses of BotBase pass the type checks.
         command.add_to(self)  # type: ignore
+        self._bridge_commands.append(command)
 
     def bridge_command(self, **kwargs):
         """A shortcut decorator that invokes :func:`bridge_command` and adds it to
         the internal command list via :meth:`~.Bot.add_bridge_command`.
 
         Returns
-        --------
+        -------
         Callable[..., :class:`BridgeCommand`]
             A decorator that converts the provided method into an :class:`.BridgeCommand`, adds both a slash and
             traditional (prefix-based) version of the command to the bot, and returns the :class:`.BridgeCommand`.
@@ -70,6 +88,22 @@ class BotBase(ABC):
 
         def decorator(func) -> BridgeCommand:
             result = bridge_command(**kwargs)(func)
+            self.add_bridge_command(result)
+            return result
+
+        return decorator
+
+    def bridge_group(self, **kwargs):
+        """A decorator that is used to wrap a function as a bridge command group.
+
+        Parameters
+        ----------
+        kwargs: Optional[Dict[:class:`str`, Any]]
+            Keyword arguments that are directly passed to the respective command constructors. (:class:`.SlashCommandGroup` and :class:`.ext.commands.Group`)
+        """
+
+        def decorator(func) -> BridgeCommandGroup:
+            result = bridge_group(**kwargs)(func)
             self.add_bridge_command(result)
             return result
 
@@ -86,8 +120,6 @@ class Bot(BotBase, ExtBot):
     .. versionadded:: 2.0
     """
 
-    pass
-
 
 class AutoShardedBot(BotBase, ExtAutoShardedBot):
     """This is similar to :class:`.Bot` except that it is inherited from
@@ -95,5 +127,3 @@ class AutoShardedBot(BotBase, ExtAutoShardedBot):
 
     .. versionadded:: 2.0
     """
-
-    pass

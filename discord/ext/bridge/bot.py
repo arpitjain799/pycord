@@ -44,14 +44,10 @@ class BotBase(ABC):
     def bridge_commands(self) -> list[BridgeCommand | BridgeCommandGroup]:
         """Returns all of the bot's bridge commands."""
 
-        if cmds := getattr(self, "_bridge_commands", []):
+        if not (cmds := getattr(self, "_bridge_commands", None)):
             self._bridge_commands = cmds = []
 
         return cmds
-
-    @bridge_commands.setter
-    def bridge_commands(self, cmds):
-        self._bridge_commands = cmds
 
     async def get_application_context(
         self, interaction: Interaction, cls=None
@@ -73,7 +69,8 @@ class BotBase(ABC):
         """
         # Ignore the type hinting error here. All subclasses of BotBase pass the type checks.
         command.add_to(self)  # type: ignore
-        self._bridge_commands.append(command)
+
+        self.bridge_commands.append(command)
 
     def bridge_command(self, **kwargs):
         """A shortcut decorator that invokes :func:`bridge_command` and adds it to

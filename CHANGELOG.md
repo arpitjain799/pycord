@@ -12,6 +12,59 @@ These changes are available on the `master` branch, but have not yet been releas
 
 ### Added
 
+- Added new AutoMod trigger metadata properties `regex_patterns`, `allow_list`, and
+  `mention_total_limit`; and added the `mention_spam` trigger type.
+  ([#1809](https://github.com/Pycord-Development/pycord/pull/1809))
+- Added missing `image` parameter to `Guild.create_scheduled_event()` method.
+  ([#1831](https://github.com/Pycord-Development/pycord/pull/1831))
+- Added new message types, `interaction_premium_upsell`, `stage_start`, `stage_end`,
+  `stage_speaker`, `stage_raise_hand`, `stage_topic`, and
+  `guild_application_premium_subscription`.
+  ([#1852](https://github.com/Pycord-Development/pycord/pull/1852))
+- Added new `EmbeddedActivity` values.
+  ([#1859](https://github.com/Pycord-Development/pycord/pull/1859))
+
+### Changed
+
+- Changed `EmbeddedActivity` values to update accordingly with the new activities.
+  ([#1859](https://github.com/Pycord-Development/pycord/pull/1859))
+
+### Fixed
+
+- Fixed bugs in `Page.update_files` where file objects stored in memory were causing an
+  `AttributeError`, and `io.BytesIO` files didn't send properly more than once.
+  ([#1869](https://github.com/Pycord-Development/pycord/pull/1869) &
+  [#1881](https://github.com/Pycord-Development/pycord/pull/1881))
+
+## [2.3.2] - 2022-12-03
+
+### Fixed
+
+- Fixed bridge groups missing the `parent` attribute.
+  ([#1823](https://github.com/Pycord-Development/pycord/pull/1823))
+
+## [2.3.2] - 2022-12-03
+
+### Fixed
+
+- Fixed another `AttributeError` relating to the new `bridge_commands` attribute on
+  `ext.bridge.Bot`. ([#1815](https://github.com/Pycord-Development/pycord/pull/1815))
+- Fixed an `AttributeError` in select relating to the select type.
+  ([#1814](https://github.com/Pycord-Development/pycord/pull/1814))
+- Fixed `Thread.applied_tags` always returning an empty list.
+  ([#1817](https://github.com/Pycord-Development/pycord/pull/1817))
+
+## [2.3.1] - 2022-11-27
+
+### Fixed
+
+- Fixed `AttributeError` relating to the new `bridge_commands` attribute on
+  `ext.bridge.Bot`. ([#1802](https://github.com/Pycord-Development/pycord/pull/1802))
+
+## [2.3.0] - 2022-11-23
+
+### Added
+
 - New brief Attribute to BridgeSlashCommand.
   ([#1676](https://github.com/Pycord-Development/pycord/pull/1676))
 - Python 3.11 support. ([#1680](https://github.com/Pycord-Development/pycord/pull/1680))
@@ -28,6 +81,8 @@ These changes are available on the `master` branch, but have not yet been releas
   ([#1636](https://github.com/Pycord-Development/pycord/pull/1636))
 - Added `bridge_commands` attribute to `ext.bridge.Bot` for access to bridge command
   objects. ([#1787](https://github.com/Pycord-Development/pycord/pull/1787))
+- Updated `Guild.features` to include new and previously missing features.
+  ([#1788](https://github.com/Pycord-Development/pycord/pull/1788))
 
 ### Fixed
 
@@ -441,7 +496,10 @@ These changes are available on the `master` branch, but have not yet been releas
 - Fix py3.10 UnionType checks issue.
   ([#1240](https://github.com/Pycord-Development/pycord/pull/1240))
 
-[unreleased]: https://github.com/Pycord-Development/pycord/compare/v2.2.2...HEAD
+[unreleased]: https://github.com/Pycord-Development/pycord/compare/v2.3.2...HEAD
+[2.3.2]: https://github.com/Pycord-Development/pycord/compare/v2.3.1...v2.3.2
+[2.3.1]: https://github.com/Pycord-Development/pycord/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/Pycord-Development/pycord/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/Pycord-Development/pycord/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/Pycord-Development/pycord/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Pycord-Development/pycord/compare/v2.1.3...v2.2.0
